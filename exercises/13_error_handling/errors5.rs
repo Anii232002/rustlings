@@ -48,9 +48,19 @@ impl PositiveNonzeroInteger {
 
 // TODO: Add the correct return type `Result<(), Box<dyn ???>>`. What can we
 // use to describe both errors? Is there a trait which both errors implement?
-fn main() {
+fn main()-> Result<(), Box<dyn Error>> {
     let pretend_user_input = "42";
     let x: i64 = pretend_user_input.parse()?;
     println!("output={:?}", PositiveNonzeroInteger::new(x)?);
     Ok(())
 }
+/*
+In main(), two different lines use the ? operator, and each line can fail with a completely different error type:
+• Line 1 (pretend_user_input.parse()?): Fails with a ParseIntError if the string is not a valid number.
+• Line 2 (PositiveNonzeroInteger::new(x)?): Fails with your custom CreationError if the number is zero or negative.
+Because a normal Result<T, E> only accepts one concrete error type for E, Rust cannot return both ParseIntError and CreationError directly. Wrapping the error in Box<dyn Error> solves this in three steps:
+• Shared Trait (dyn Error): Both ParseIntError (from the standard library) and CreationError (via impl Error for CreationError {} on line 34) implement the std::error::Error trait. Writing dyn Error tells Rust to accept any type that implements that trait.
+• Heap Allocation (Box<...>): Because ParseIntError and CreationError take up different amounts of memory, Rust does not know their exact size at compile time. Putting them inside a Box stores the actual error on the heap and gives main a fixed-size pointer to return.
+• Automatic Conversion (? + From): When either line fails, the ? operator automatically uses Rust's built-in From trait to package the specific error into a Box<dyn Error> and exit main early.
+
+ */
